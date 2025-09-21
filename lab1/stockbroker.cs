@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.IO;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Stock
 {
@@ -15,16 +16,12 @@ namespace Stock
     {
         public string BrokerName { get; set; }
         public List<Stock> stocks = new List<Stock>();
+        private static int count = 0;
+        private static readonly object fileLock = new object();
 
         //readonly string docPath = @"C:\Users\Documents\CECS 475\Lab3_output.txt";
         readonly string destPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Lab1_output.txt");
         public string titles = "Broker".PadRight(10) + "Stock".PadRight(15) + "Value".PadRight(10) + "Changes".PadRight(10) + "Date and Time";
-
-        Console.WriteLine(___________________);
-        using (StreamWriter outputFile = new StreamWriter(________, _____________))
-        {
-            outputFile.WriteLine(titles);
-        }
 
         /// <summary>
         /// The stockbroker object
@@ -33,6 +30,12 @@ namespace Stock
         public StockBroker(string brokerName)
         {
             BrokerName = brokerName;
+
+            Console.WriteLine(titles);
+            using (StreamWriter outputFile = new StreamWriter(destPath, false))
+            {
+                outputFile.WriteLine(titles);
+            }
         }
 
         //---------------------------------------------------------------------------------------
@@ -42,8 +45,8 @@ namespace Stock
         /// <param name="stock">Stock object</param>
         public void AddStock(Stock stock)
         {
-            stocks._____________________________;
-            stock.____________________________________;
+            stocks.Add(stock);
+            stock.StockEvent += EventHandler;
         }
 
         /// <summary>
@@ -51,35 +54,40 @@ namespace Stock
         /// </summary>
         /// <param name="sender">The sender that indicated a change</param>
         /// <param name="e">Event arguments</param>
-        public ______ void EventHandler(Object sender, StockNotification e)
+        public async void EventHandler(Object sender, StockNotification e)
         {
             Stock newStock = (Stock)sender;
-            _____ write(sender, e);
+            await write(sender, e);
             return;
         }
 
-        public _________ write(________, ______ e)
+        public async Task write(Object sender, StockNotification e)
         {
             String line = BrokerName.PadRight(16) + e.StockName.PadRight(16) + Convert.ToString(e.CurrentValue).PadRight(16) + Convert.ToString(e.NumChanges).PadRight(16) + DateTime.Now;
-            try
+            
+            lock (fileLock)
             {
-                if (count == 0)
+                try
                 {
-                    Console.WriteLine(titles);
-                    using (StreamWriter outputFile = new StreamWriter(destPath, ______))
+                    if (count == 0)
                     {
-                        ________________________________________;
+                        Console.WriteLine(titles);
+                        using (StreamWriter outputFile = new StreamWriter(destPath, false))
+                        {
+                            outputFile.WriteLine(titles);
+                        }
+                    } //end if
+                    using (StreamWriter outputFile = new StreamWriter(destPath, true))
+                    {
+                        outputFile.WriteLine(line);
                     }
-                } //end if
-                using (StreamWriter outputFile = new StreamWriter(destPath, __________))
-                {
-                    ____________ outputFile.__________________(__________);
+                    Console.WriteLine(line);
+                    count++;
                 }
-                Console.WriteLine(__________);
-            }
-            catch(IOException ex)
-            {
-                Console.WriteLine($"Error writing to file: {ex.Message}");
+                catch(IOException ex)
+                {
+                    Console.WriteLine($"Error writing to file: {ex.Message}");
+                }
             }
         }
     }
